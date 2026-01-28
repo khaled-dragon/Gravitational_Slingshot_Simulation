@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gravitational Slingshot Sim</title>
+    <style>
+
+        :root {
+            --bg-color: #0a192f;        
+            --container-bg: #112240;    
+            --text-color: #ccd6f6;      
+            --accent-color: #64ffda;    
+            --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            font-size: 2rem;
+            color: var(--accent-color);
+            text-shadow: 0 0 10px rgba(100, 255, 218, 0.2);
+        }
+
+        p {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        #gameContainer {
+            position: relative;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 2px solid var(--container-bg);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background-color: #000; 
+            cursor: crosshair;
+        }
+
+        .controls {
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: #8892b0;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Gravitational Slingshot</h1>
+    <p>Click once to aim, Click again to launch. Watch gravity do the rest.</p>
+
+    <div id="gameContainer">
+        <canvas id="simCanvas" width="800" height="600"></canvas>
+    </div>
+
+    <div class="controls">
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const WIDTH = canvas.width;
+        const HEIGHT = canvas.height;
+
+        const PLANET_MASS = 100;
+        const SHIP_MASS = 5;
+        const G = 10; 
+        const PLANET_SIZE = 50;
+        const OBJ_SIZE = 5;
+        const VEL_SCALE = 100;
+        
+        const bgImage = new Image();
+        bgImage.src = 'background.jpg'; 
+
+        const planetImage = new Image();
+        planetImage.src = 'jupiter.png'; 
+
+        class Planet {
+            constructor(x, y, mass) {
+                this.x = x;
+                this.y = y;
+                this.mass = mass;
+            }
+
+            draw() {
+
+                if (planetImage.complete) {
+                    ctx.drawImage(planetImage, this.x - PLANET_SIZE, this.y - PLANET_SIZE, PLANET_SIZE * 2, PLANET_SIZE * 2);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, PLANET_SIZE, 0, Math.PI * 2);
+                    ctx.fillStyle = 'blue';
+                    ctx.fill();
+                    ctx.closePath();
+                }
+            }
+        }
+
+        class Spacecraft {
+            constructor(x, y, vel_x, vel_y, mass) {
+                this.x = x;
+                this.y = y;
+                this.vel_x = vel_x;
+                this.vel_y = vel_y;
+                this.mass = mass;
+            }
+
+            move(planet) {
+
+                let dist_x = planet.x - this.x;
+                let dist_y = planet.y - this.y;
+                let distance = Math.sqrt(dist_x**2 + dist_y**2);
+
+                let force = (G * this.mass * planet.mass) / (distance**2);
+                let acceleration = force / this.mass;
+                
+                let angle = Math.atan2(dist_y, dist_x);
+
+                let acceleration_x = acceleration * Math.cos(angle);
+                let acceleration_y = acceleration * Math.sin(angle);
+
+                this.vel_x += acceleration_x;
+                this.vel_y += acceleration_y;
+
+                this.x += this.vel_x;
+                this.y += this.vel_y;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, OBJ_SIZE, 0, Math.PI * 2);
+                ctx.fillStyle = 'red';
+                ctx.fill();
+                ctx.closePath();
+            }
+        }
+
+        const planet = new Planet(WIDTH / 2, HEIGHT / 2, PLANET_MASS);
+        let objects = [];
+        let tempObjPos = null; 
+        
+        let mouseX = 0;
+        let mouseY = 0;
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (tempObjPos) {
+
+                const t_x = tempObjPos.x;
+                const t_y = tempObjPos.y;
+                
+                const vel_x = (mouseX - t_x) / VEL_SCALE;
+                const vel_y = (mouseY - t_y) / VEL_SCALE;
+
+                const newShip = new Spacecraft(t_x, t_y, vel_x, vel_y, SHIP_MASS);
+                objects.push(newShip);
+                
+                tempObjPos = null; 
+            } else {
+
+                tempObjPos = { x: mouseX, y: mouseY };
+            }
+        });
+
+        function update() {
+
+            if (bgImage.complete) {
+                ctx.drawImage(bgImage, 0, 0, WIDTH, HEIGHT);
+            } else {
+                ctx.fillStyle = 'black';
+                ctx.fillRect(0, 0, WIDTH, HEIGHT);
+            }
+
+            if (tempObjPos) {
+                ctx.beginPath();
+                ctx.moveTo(tempObjPos.x, tempObjPos.y);
+                ctx.lineTo(mouseX, mouseY);
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(tempObjPos.x, tempObjPos.y, OBJ_SIZE, 0, Math.PI * 2);
+                ctx.fillStyle = 'red';
+                ctx.fill();
+            }
+
+            for (let i = 0; i < objects.length; i++) {
+                let obj = objects[i];
+                obj.move(planet);
+                obj.draw();
+
+                let distToPlanet = Math.sqrt((obj.x - planet.x)**2 + (obj.y - planet.y)**2);
+                let offScreen = (obj.x < 0 || obj.x > WIDTH || obj.y < 0 || obj.y > HEIGHT);
+                
+                if (offScreen || distToPlanet <= PLANET_SIZE) {
+                    objects.splice(i, 1); 
+                    i--; 
+                }
+            }
+
+            planet.draw();
+
+            requestAnimationFrame(update);
+        }
+
+        update();
+
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
