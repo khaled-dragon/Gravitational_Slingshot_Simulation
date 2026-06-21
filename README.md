@@ -1,5 +1,3 @@
-# *Try on: https://khaled-dragon.github.io/Gravitational_Slingshot_Simulation/*
-
 # 🚀 Gravitational Slingshot Simulator
 
 An interactive 2D orbital mechanics simulation that demonstrates **Newton's Law of Universal Gravitation**. Launch spacecraft, perform gravity assists (slingshots), and explore the delicate balance of orbital physics.
